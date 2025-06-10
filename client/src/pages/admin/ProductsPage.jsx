@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axiosInstance';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -8,6 +11,7 @@ const ProductsPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -20,6 +24,8 @@ const ProductsPage = () => {
     }
   };
 
+
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -31,28 +37,33 @@ const ProductsPage = () => {
   };
 
   const handleSaveProduct = async () => {
+    setSubmitting(true);
     try {
       if (editingId) {
-        // Update existing product
         await api.put(`/products/${editingId}`, {
           name: form.name,
           price: parseFloat(form.price),
           stock: parseInt(form.stock),
         });
+        toast.success('Product updated!');
       } else {
-        // Create new product
         await api.post('/products', {
           name: form.name,
           price: parseFloat(form.price),
           stock: parseInt(form.stock),
         });
+        toast.success('Product created!');
       }
       resetForm();
       fetchProducts();
     } catch (err) {
       alert('Error saving product');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+
 
   const handleEdit = (product) => {
     setForm({
@@ -63,6 +74,22 @@ const ProductsPage = () => {
     setEditingId(product._id);
     setShowForm(true);
   };
+
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this product?');
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/products/${id}`);
+      toast.success('Product deleted');
+      fetchProducts(); // Refresh list
+    } catch (err) {
+      toast.error('Failed to delete product');
+    }
+  };
+
+
 
   return (
     <div>
@@ -107,8 +134,12 @@ const ProductsPage = () => {
             onChange={(e) => setForm({ ...form, stock: e.target.value })}
           />
           <div className="flex gap-2">
-            <button onClick={handleSaveProduct} className="bg-blue-600 text-white px-4 py-2 rounded">
-              {editingId ? 'Update' : 'Save'}
+            <button
+              onClick={handleSaveProduct}
+              disabled={!form.name || !form.price || !form.stock}
+              className={`px-4 py-2 rounded text-white ${!form.name || !form.price || !form.stock ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600'}`}
+            >
+              {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
             <button onClick={resetForm} className="bg-gray-400 text-white px-4 py-2 rounded">
               Cancel
@@ -141,6 +172,17 @@ const ProductsPage = () => {
                   Edit
                 </button>
                 {/* Delete will go here next */}
+                <button
+                  className="text-red-600 ml-2"
+                  onClick={() => handleDelete(p._id)}
+                >
+                  Delete
+
+                  {submitting ? 'Deleting...' : editingId ? 'Update' : 'Save'}
+
+                </button>
+
+
               </td>
             </tr>
           ))}

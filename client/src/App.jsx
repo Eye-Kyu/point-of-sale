@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import POSPage from './pages/POSPage';
 import AdminLayout from './components/layout/AdminLayout';
@@ -6,12 +6,16 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import SalesPage from './pages/admin/SalesPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import UsersPage from './pages/admin/UsersPage';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 
 
 
 function App() {
   return (
-    <BrowserRouter>
+    <>
+      <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/pos" element={<POSPage />} />
@@ -23,7 +27,8 @@ function App() {
           <Route path="users" element={<UsersPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+
+    </>
   );
 }
 
