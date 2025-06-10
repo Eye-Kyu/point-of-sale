@@ -177,9 +177,7 @@ const ProductsPage = () => {
                   onClick={() => handleDelete(p._id)}
                 >
                   Delete
-
                   {submitting ? 'Deleting...' : editingId ? 'Update' : 'Save'}
-
                 </button>
 
 

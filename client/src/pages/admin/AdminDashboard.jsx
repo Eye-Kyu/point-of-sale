@@ -32,9 +32,9 @@ const AdminDashboard = () => {
     }, []);
 
     return (
-        <div className="p-6">
+        <div className="p-6 bg-yellow-200">
 
-            <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold text-blue-400 mb-6">Admin Dashboard</h1>
 
             <div className="grid grid-cols-2 gap-6 mb-8">
                 <div className="bg-blue-200 p-4 rounded shadow">
