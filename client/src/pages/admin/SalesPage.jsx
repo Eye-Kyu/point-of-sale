@@ -4,7 +4,6 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
 
-
 const ITEMS_PER_PAGE = 5;
 
 const SalesPage = () => {
@@ -19,6 +18,7 @@ const SalesPage = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
+  const [productFilter, setProductFilter] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,20 +38,17 @@ const SalesPage = () => {
     fetchData();
   }, []);
 
-
   const handleExportToExcel = () => {
-    const exportData = sales.map((sale) => {
-      return {
-        'Sale ID': sale._id,
-        'Date': new Date(sale.date).toLocaleDateString(),
-        'Customer': sale.customerName || 'N/A',
-        'Total (KES)': sale.total,
-        'Items': sale.items.map((item) => {
-          const product = productsList.find(p => p._id === item.productId);
-          return `${product?.name || 'Unknown'} (x${item.quantity})`;
-        }).join(', ')
-      };
-    });
+    const exportData = sales.map((sale) => ({
+      'Sale ID': sale._id,
+      'Date': new Date(sale.date).toLocaleDateString(),
+      'Customer': sale.customerName || 'N/A',
+      'Total (KES)': sale.total,
+      'Items': sale.items.map((item) => {
+        const product = productsList.find(p => p._id === item.productId);
+        return `${product?.name || 'Unknown'} (x${item.quantity})`;
+      }).join(', ')
+    }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
@@ -60,7 +57,6 @@ const SalesPage = () => {
     const today = new Date().toISOString().split('T')[0];
     XLSX.writeFile(workbook, `sales-report-${today}.xlsx`);
   };
-
 
   const calculateTotal = (items) => {
     return items.reduce((total, item) => {
@@ -144,13 +140,26 @@ const SalesPage = () => {
     setShowEditModal(true);
   };
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setDateFilter({ from: '', to: '' });
+    setProductFilter('');
+    setPage(1);
+  };
+
   const filteredSales = sales.filter(sale => {
     const matchesSearch = sale.customerName?.toLowerCase().includes(search.toLowerCase());
+
     const saleDate = new Date(sale.date);
     const from = dateFilter.from ? new Date(dateFilter.from) : null;
     const to = dateFilter.to ? new Date(dateFilter.to) : null;
     const matchesDate = (!from || saleDate >= from) && (!to || saleDate <= to);
-    return matchesSearch && matchesDate;
+
+    const matchesProduct =
+      !productFilter ||
+      sale.items.some(item => item.productId === productFilter);
+
+    return matchesSearch && matchesDate && matchesProduct;
   });
 
   const totalPages = Math.ceil(filteredSales.length / ITEMS_PER_PAGE);
@@ -167,13 +176,21 @@ const SalesPage = () => {
         <button className="bg-green-600 text-white px-4 py-2 rounded" onClick={() => setShowForm(true)}>+ Add Sale</button>
       </div>
 
-      <button
-        onClick={handleExportToExcel}
-        className="bg-yellow-500 text-white px-4 py-2 rounded"
-      >
-        Export to Excel
-      </button>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={handleExportToExcel}
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        >
+          Export to Excel
+        </button>
 
+        <button
+          onClick={handleClearFilters}
+          className="bg-gray-400 text-white px-4 py-2 rounded"
+        >
+          Clear Filters
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-4">
@@ -195,6 +212,16 @@ const SalesPage = () => {
           value={dateFilter.to}
           onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
         />
+        <select
+          className="border p-2"
+          value={productFilter}
+          onChange={(e) => setProductFilter(e.target.value)}
+        >
+          <option value="">All Products</option>
+          {productsList.map((p) => (
+            <option key={p._id} value={p._id}>{p.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Add and Edit Forms */}
@@ -230,31 +257,42 @@ const SalesPage = () => {
       )}
 
       {/* Sales Table */}
-      <table className="w-full border-collapse border border-gray-300 mb-4">
+      <table className="w-full table-auto mb-4">
         <thead>
-          <tr>
-            <th className="border p-2">Date</th>
-            <th className="border p-2">Customer</th>
-            <th className="border p-2">Products</th>
-            <th className="border p-2">Total</th>
-            <th className="border p-2">Actions</th>
+          <tr className="bg-gray-200">
+            <th className="p-2 border">ID</th>
+            <th className="p-2 border">Date</th>
+            <th className="p-2 border">Total</th>
+            <th className="p-2 border">Customer</th>
+            <th className="p-2 border">Items</th>
           </tr>
         </thead>
         <tbody>
           {currentSales.map((sale) => (
             <tr key={sale._id}>
+              <td className="border p-2">{sale._id}</td>
               <td className="border p-2">{new Date(sale.date).toLocaleDateString()}</td>
-              <td className="border p-2">{sale.customerName}</td>
+              <td className="border p-2">KES {sale.total}</td>
+              <td className="border p-2">{sale.customerName || 'N/A'}</td>
               <td className="border p-2">
                 {sale.items.map((item, idx) => {
-                  const prod = productsList.find(p => p._id === item.productId);
-                  return <div key={idx}>{prod?.name || 'Unknown'} × {item.quantity}</div>;
+                  const product = productsList.find(p => p._id === item.productId);
+                  return (
+                    <div key={idx} className="flex items-center gap-2 mb-2">
+                      {product?.thumbnailUrl && (
+                        <img
+                          src={product.thumbnailUrl}
+                          alt={product.name}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      )}
+                      <div>
+                        <div className="font-semibold">{product?.name || 'Unknown Product'}</div>
+                        <div className="text-sm text-gray-500">Qty: {item.quantity}</div>
+                      </div>
+                    </div>
+                  );
                 })}
-              </td>
-              <td className="border p-2">KES {sale.total}</td>
-              <td className="border p-2 space-x-2">
-                <button className="text-blue-600" onClick={() => handleEditClick(sale)}>Edit</button>
-                <button className="text-red-600" onClick={() => handleDeleteSale(sale._id)}>Delete</button>
               </td>
             </tr>
           ))}
