@@ -3,6 +3,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+<<<<<<< HEAD
+=======
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+>>>>>>> cbf2420 (tailwind fixing2)
     "tailwindcss": "^4.1.8"
   }
 }
