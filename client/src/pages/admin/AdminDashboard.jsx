@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/axiosInstance';
 import { toast, ToastContainer } from 'react-toastify';
+import DashboardSummary from '../../components/layout/DashboardSummary'; // Make sure this path is correct
 
 const AdminDashboard = () => {
     const [totalSales, setTotalSales] = useState(0);
@@ -10,17 +11,12 @@ const AdminDashboard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                // Fetch all sales
                 const res = await api.get('/sales');
                 const sales = res.data;
 
                 setTotalSales(sales.length);
-
-                // Calculate total revenue
                 const revenue = sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
                 setTotalRevenue(revenue);
-
-                // Get last 5 sales
                 setRecentSales(sales.slice(-5).reverse());
             } catch (error) {
                 toast.error('Failed to load dashboard data');
@@ -32,11 +28,11 @@ const AdminDashboard = () => {
     }, []);
 
     return (
-        <div className="p-6 bg-yellow-200">
+        <div className="p-6 bg-blue-50 min-h-screen">
+            <h1 className="text-4xl font-bold text-blue-600 mb-6">Admin Dashboard</h1>
 
-            <h1 className="text-3xl font-bold text-blue-400 mb-6">Admin Dashboard</h1>
-
-            <div className="grid grid-cols-2 gap-6 mb-8">
+            {/* Existing stat cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                 <div className="bg-blue-200 p-4 rounded shadow">
                     <h2 className="text-xl font-semibold">Total Sales</h2>
                     <p className="text-2xl">{totalSales}</p>
@@ -48,15 +44,21 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
+            {/* ✅ NEW: Summary cards (today’s sales, stock, etc.) */}
+            <div className="mb-10">
+                <DashboardSummary />
+            </div>
+
+            {/* Recent sales */}
             <div>
                 <h2 className="text-xl font-semibold mb-4">Recent Sales</h2>
-                <table className="w-full border">
+                <table className="w-full border bg-white">
                     <thead>
-                        <tr>
-                            <th className="border p-2">Sale ID</th>
-                            <th className="border p-2">Date</th>
-                            <th className="border p-2">Total Amount</th>
-                            <th className="border p-2">Cashier</th>
+                        <tr className="bg-gray-100 text-left">
+                            <th className="border border-gray-300 p-2">Sale ID</th>
+                            <th className="border border-gray-300 p-2">Date</th>
+                            <th className="border border-gray-300 p-2">Total Amount</th>
+                            <th className="border border-gray-300 p-2">Cashier</th>
                         </tr>
                     </thead>
                     <tbody>

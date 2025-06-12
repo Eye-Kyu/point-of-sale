@@ -6,9 +6,11 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import SalesPage from './pages/admin/SalesPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import UsersPage from './pages/admin/UsersPage';
-import { toast } from 'react-toastify';
+//import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import './index.css';
+
 
 
 

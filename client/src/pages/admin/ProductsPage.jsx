@@ -173,7 +173,7 @@ const ProductsPage = () => {
                 </button>
                 {/* Delete will go here next */}
                 <button
-                  className="text-red-600 ml-2"
+                  className=" ml-2 bg-red-600 hover:bg-red-800 text-white"
                   onClick={() => handleDelete(p._id)}
                 >
                   Delete
