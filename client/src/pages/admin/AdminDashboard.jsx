@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/axiosInstance';
 import { toast, ToastContainer } from 'react-toastify';
-import DashboardSummary from '../../components/layout/DashboardSummary'; // Make sure this path is correct
+import DashboardSummary from '../../components/layout/DashboardSummary';
+import DashboardCharts from '../../components/dashboard/DashboardCharts';
 
 const AdminDashboard = () => {
     const [totalSales, setTotalSales] = useState(0);
@@ -31,7 +32,7 @@ const AdminDashboard = () => {
         <div className="p-6 bg-blue-50 min-h-screen">
             <h1 className="text-4xl font-bold text-blue-600 mb-6">Admin Dashboard</h1>
 
-            {/* Existing stat cards */}
+            {/* Static stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                 <div className="bg-blue-200 p-4 rounded shadow">
                     <h2 className="text-xl font-semibold">Total Sales</h2>
@@ -44,12 +45,17 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ✅ NEW: Summary cards (today’s sales, stock, etc.) */}
+            {/* 📊 Dashboard Summary cards */}
             <div className="mb-10">
                 <DashboardSummary />
             </div>
 
-            {/* Recent sales */}
+            {/* 📈 Charts */}
+            <div className="mb-10">
+                <DashboardCharts />
+            </div>
+
+            {/* Recent Sales Table */}
             <div>
                 <h2 className="text-xl font-semibold mb-4">Recent Sales</h2>
                 <table className="w-full border bg-white">

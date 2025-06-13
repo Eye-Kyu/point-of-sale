@@ -27,7 +27,8 @@ export default function DashboardSummary() {
     const bestSeller = summary.bestSeller || 'N/A';
 
     return (
-        <>
+        <div className="space-y-8">
+            {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard title="Today's Sales" value={`KES ${todaySales}`} />
                 <SummaryCard title="This Week" value={`KES ${weekSales}`} />
@@ -35,9 +36,21 @@ export default function DashboardSummary() {
                 <SummaryCard title="Top Product" value={bestSeller} />
             </div>
 
-            {/* Sales Chart */}
+            {/* Sales chart */}
             <SalesChart data={summary.chartData || []} />
-        </>
+
+            {/* Low stock alert section */}
+            {summary.lowStockItems?.length > 0 && (
+                <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg">
+                    <h3 className="font-bold mb-2">⚠️ Low Stock Alert</h3>
+                    <ul className="list-disc list-inside text-sm">
+                        {summary.lowStockItems.map(item => (
+                            <li key={item._id}>{item.name} — {item.stock} units left</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
     );
 }
 

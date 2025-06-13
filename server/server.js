@@ -34,6 +34,13 @@ app.use('/api/sales', salesRoutes);
 //handles inventory- directs to inventory api
 app.use('/api/inventory', inventoryRoutes);
 
+//dashboard summary cards for day,week and month
+app.use('/api/dashboard', require('./routes/dashboard'));
+
+//bestseller logic and charts
+app.use('/api/dashboard', require('./routes/dashboard'));
+
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
