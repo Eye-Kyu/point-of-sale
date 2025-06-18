@@ -91,3 +91,38 @@ exports.getSummary = async (req, res) => {
         res.status(500).json({ error: 'Failed to load dashboard summary' });
     }
 };
+
+const getStartDate = (range) => {
+    const now = new Date();
+    if (range === 'week') {
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        return start;
+    } else if (range === 'month') {
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    // Default to today
+    return new Date(now.setHours(0, 0, 0, 0));
+};
+
+exports.getSummary = async (req, res) => {
+    const range = req.query.range || 'day';
+    const startDate = getStartDate(range);
+
+    try {
+        const [salesSummary, ...otherData] = await Promise.all([
+            Sale.aggregate([
+                { $match: { date: { $gte: startDate } } },
+                { $group: { _id: null, total: { $sum: "$total" } } }
+            ]),
+            // ... (other existing aggregates like totalStock, bestSeller, etc.)
+        ]);
+
+        res.json({
+            sales: salesSummary[0]?.total || 0,
+            // ... include other summary fields
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load summary' });
+    }
+};

@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import SalesChart from '../dashboard/SalesChart';
+import PieChartBestsellers from '../dashboard/PieChartBestsellers';
+import BarChartStockLevels from '../dashboard/BarChartStockLevels';
 
 export default function DashboardSummary() {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [range, setRange] = useState('day'); // 'day', 'week', 'month'
 
     useEffect(() => {
-        axios.get('/api/dashboard/summary')
+        setLoading(true);
+        axios.get(`/api/dashboard/summary?range=${range}`)
             .then(res => {
                 setSummary(res.data);
                 setLoading(false);
@@ -16,7 +20,22 @@ export default function DashboardSummary() {
                 console.error("Failed to fetch dashboard summary", err);
                 setLoading(false);
             });
-    }, []);
+    }, [range]);
+
+    const exportCSV = () => {
+        if (!summary?.chartData?.length) return;
+
+        const headers = ['Date', 'Sales'];
+        const rows = summary.chartData.map(item => [item.date, item.total.toFixed(2)]);
+        const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `sales-${range}.csv`);
+        link.click();
+    };
 
     if (loading) return <p>Loading summary...</p>;
     if (!summary) return <p>Failed to load summary.</p>;
@@ -28,6 +47,28 @@ export default function DashboardSummary() {
 
     return (
         <div className="space-y-8">
+            {/* 🔽 Filter + Export */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Dashboard Summary</h2>
+                <div className="flex items-center space-x-2">
+                    <select
+                        value={range}
+                        onChange={(e) => setRange(e.target.value)}
+                        className="p-2 border rounded"
+                    >
+                        <option value="day">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                    <button
+                        onClick={exportCSV}
+                        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
             {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard title="Today's Sales" value={`KES ${todaySales}`} />
@@ -36,8 +77,14 @@ export default function DashboardSummary() {
                 <SummaryCard title="Top Product" value={bestSeller} />
             </div>
 
-            {/* Sales chart */}
+            {/* Sales Line Chart */}
             <SalesChart data={summary.chartData || []} />
+
+            {/* Pie & Bar Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <PieChartBestsellers data={summary.topProducts || []} />
+                <BarChartStockLevels data={summary.stockLevels || []} />
+            </div>
 
             {/* Low stock alert section */}
             {summary.lowStockItems?.length > 0 && (
