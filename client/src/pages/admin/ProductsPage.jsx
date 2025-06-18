@@ -3,15 +3,24 @@ import api from '../../api/axiosInstance';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({ name: '', price: '', stock: '' });
+  const [form, setForm] = useState({
+    name: '',
+    price: '',
+    stock: '',
+    image: null, // Now stores File
+    category: '',
+  });
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const fetchProducts = async () => {
     try {
@@ -24,14 +33,14 @@ const ProductsPage = () => {
     }
   };
 
-
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
   const resetForm = () => {
-    setForm({ name: '', price: '', stock: '' });
+    setForm({
+      name: '',
+      price: '',
+      stock: '',
+      image: null,
+      category: '',
+    });
     setEditingId(null);
     setShowForm(false);
   };
@@ -39,57 +48,58 @@ const ProductsPage = () => {
   const handleSaveProduct = async () => {
     setSubmitting(true);
     try {
+      const formData = new FormData();
+      formData.append('name', form.name);
+      formData.append('price', parseFloat(form.price));
+      formData.append('stock', parseInt(form.stock));
+      formData.append('category', form.category);
+      if (form.image) {
+        formData.append('image', form.image);
+      }
+
       if (editingId) {
-        await api.put(`/products/${editingId}`, {
-          name: form.name,
-          price: parseFloat(form.price),
-          stock: parseInt(form.stock),
+        await api.put(`/products/${editingId}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Product updated!');
       } else {
-        await api.post('/products', {
-          name: form.name,
-          price: parseFloat(form.price),
-          stock: parseInt(form.stock),
+        await api.post('/products', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Product created!');
       }
+
       resetForm();
       fetchProducts();
     } catch (err) {
-      alert('Error saving product');
+      toast.error('Error saving product');
     } finally {
       setSubmitting(false);
     }
   };
-
-
 
   const handleEdit = (product) => {
     setForm({
       name: product.name,
       price: product.price,
       stock: product.stock,
+      image: product.image || '',
+      category: product.category || '',
     });
     setEditingId(product._id);
     setShowForm(true);
   };
 
-
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this product?');
-    if (!confirmDelete) return;
-
+    if (!window.confirm('Delete this product?')) return;
     try {
       await api.delete(`/products/${id}`);
       toast.success('Product deleted');
-      fetchProducts(); // Refresh list
+      fetchProducts();
     } catch (err) {
-      toast.error('Failed to delete product');
+      toast.error('Delete failed');
     }
   };
-
-
 
   return (
     <div>
@@ -98,8 +108,7 @@ const ProductsPage = () => {
         <button
           className="bg-green-600 text-white px-4 py-2 rounded"
           onClick={() => {
-            setForm({ name: '', price: '', stock: '' });
-            setEditingId(null);
+            resetForm();
             setShowForm(true);
           }}
         >
@@ -107,37 +116,70 @@ const ProductsPage = () => {
         </button>
       </div>
 
-      {/* Modal / Form */}
       {showForm && (
-        <div className="bg-white border p-4 rounded shadow mb-4">
+        <div className="bg-white border p-4 rounded shadow mb-4 space-y-2">
           <h3 className="text-lg font-semibold mb-2">
             {editingId ? 'Edit Product' : 'Add Product'}
           </h3>
+
           <input
             placeholder="Name"
-            className="border p-2 mb-2 w-full"
+            className="border p-2 w-full"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
+
           <input
             placeholder="Price"
             type="number"
-            className="border p-2 mb-2 w-full"
+            className="border p-2 w-full"
             value={form.price}
             onChange={(e) => setForm({ ...form, price: e.target.value })}
           />
+
           <input
             placeholder="Stock"
             type="number"
-            className="border p-2 mb-2 w-full"
+            className="border p-2 w-full"
             value={form.stock}
             onChange={(e) => setForm({ ...form, stock: e.target.value })}
           />
+
+          <select
+            className="border p-2 w-full"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
+            <option value="">Select Category</option>
+            <option value="beverages">Beverages</option>
+            <option value="snacks">Snacks</option>
+            <option value="dairy">Dairy</option>
+            <option value="bakery">Bakery</option>
+          </select>
+
+          <input
+            type="file"
+            accept="image/*"
+            className="border p-2 w-full"
+            onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
+          />
+
+          {form.image && (
+            <img
+              src={typeof form.image === 'string' ? form.image : URL.createObjectURL(form.image)}
+              alt="Preview"
+              className="w-24 h-24 object-cover rounded"
+            />
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={handleSaveProduct}
               disabled={!form.name || !form.price || !form.stock}
-              className={`px-4 py-2 rounded text-white ${!form.name || !form.price || !form.stock ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600'}`}
+              className={`px-4 py-2 rounded text-white ${!form.name || !form.price || !form.stock
+                ? 'bg-blue-300 cursor-not-allowed'
+                : 'bg-blue-600'
+                }`}
             >
               {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
@@ -149,10 +191,12 @@ const ProductsPage = () => {
       )}
 
       {/* Product Table */}
-      <table className="w-full border">
+      <table className="w-full border text-sm">
         <thead>
           <tr>
+            <th className="border p-2">Image</th>
             <th className="border p-2">Name</th>
+            <th className="border p-2">Category</th>
             <th className="border p-2">Price</th>
             <th className="border p-2">Stock</th>
             <th className="border p-2">Actions</th>
@@ -161,26 +205,24 @@ const ProductsPage = () => {
         <tbody>
           {products.map((p) => (
             <tr key={p._id}>
+              <td className="border p-2">
+                {p.image ? (
+                  <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded" />
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className="border p-2">{p.name}</td>
+              <td className="border p-2 capitalize">{p.category || '—'}</td>
               <td className="border p-2">KES {p.price}</td>
               <td className="border p-2">{p.stock}</td>
               <td className="border p-2 space-x-2">
-                <button
-                  className="text-blue-600"
-                  onClick={() => handleEdit(p)}
-                >
+                <button className="text-blue-600" onClick={() => handleEdit(p)}>
                   Edit
                 </button>
-                {/* Delete will go here next */}
-                <button
-                  className=" ml-2 bg-red-600 hover:bg-red-800 text-white"
-                  onClick={() => handleDelete(p._id)}
-                >
+                <button className="text-red-600" onClick={() => handleDelete(p._id)}>
                   Delete
-                  {submitting ? 'Deleting...' : editingId ? 'Update' : 'Save'}
                 </button>
-
-
               </td>
             </tr>
           ))}

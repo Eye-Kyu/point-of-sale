@@ -1,22 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/authMiddleware');
-const productController = require('../controllers/productController');
+const { protect } = require('../middleware/authMiddleware'); // Correct import
 const checkRole = require('../middleware/roleMiddleware');
+const productController = require('../controllers/productController');
+const parser = require('../middleware/cloudinaryParser'); 
 
-// Protect all product routes with auth middleware
-router.get('/', auth, productController.getAllProducts);
-router.post('/', auth, productController.createProduct);
-router.put('/:id', auth, productController.updateProduct);
-router.delete('/:id', auth, productController.deleteProduct);
-//low stock alert
-router.get('/low-stock', auth, productController.getLowStockProducts);
-// Only admin can delete products
-router.delete('/:id', auth, checkRole('admin'), productController.deleteProduct);
+// Get all products
+router.get('/', protect, productController.getAllProducts);
+
+// Create product (with image and category)
+router.post('/', protect, parser.single('image'), productController.createProduct);
+
+// Update product (optional image)
+router.put('/:id', protect, parser.single('image'), productController.updateProduct);
+
+// Delete (admin only)
+router.delete('/:id', protect, checkRole('admin'), productController.deleteProduct);
+
+// Low stock alert
+router.get('/low-stock', protect, productController.getLowStockProducts);
 
 module.exports = router;
-
-
-
-
-
