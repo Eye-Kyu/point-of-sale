@@ -6,14 +6,20 @@ exports.createSale = async (req, res) => {
         const { items, totalAmount, paymentMethod } = req.body;
         const cashierId = req.user.id;
 
-        // Update stock
+        // Check stock availability
         for (const item of items) {
             const product = await Product.findById(item.product);
             if (!product || product.stock < item.quantity) {
                 return res.status(400).json({ error: 'Product unavailable or out of stock' });
             }
-            product.stock -= item.quantity;
-            await product.save();
+        }
+
+        // Update stock (atomic + no validation triggered)
+        for (const item of items) {
+            await Product.updateOne(
+                { _id: item.product },
+                { $inc: { stock: -item.quantity } }
+            );
         }
 
         const sale = new Sale({
@@ -25,10 +31,9 @@ exports.createSale = async (req, res) => {
 
         await sale.save();
         res.status(201).json(sale);
-    }
-    catch (err) {
+    } catch (err) {
         console.error('💥 Create Sale Error:', err.message);
-        console.error(err.stack); // Logs full stack trace
+        console.error(err.stack);
         res.status(500).json({ error: 'Server error' });
     }
 };

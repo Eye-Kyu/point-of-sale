@@ -1,62 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import api from '../api/axiosInstance';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import api from '../api/axiosInstance';
 
 const POSPage = () => {
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
+    const [search, setSearch] = useState('');
+    const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [phoneNumber, setPhoneNumber] = useState('');
 
     useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await api.get('/products');
-                setProducts(res.data);
-            } catch (err) {
-                toast.error('Failed to load products');
-            }
-        };
         fetchProducts();
     }, []);
 
-    useEffect(() => {
-        const storedCart = localStorage.getItem('cart');
-        if (storedCart) setCart(JSON.parse(storedCart));
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('cart', JSON.stringify(cart));
-    }, [cart]);
-
-    const handleAddToCart = (product) => {
-        const existing = cart.find((item) => item.product._id === product._id);
-        if (existing) {
-            const updated = cart.map((item) =>
-                item.product._id === product._id
-                    ? { ...item, quantity: item.quantity + 1 }
-                    : item
-            );
-            setCart(updated);
-        } else {
-            setCart([...cart, { product, quantity: 1 }]);
+    const fetchProducts = async () => {
+        setLoading(true);
+        try {
+            const res = await api.get('/products');
+            setProducts(res.data);
+        } catch (err) {
+            toast.error('Failed to load products');
+        } finally {
+            setLoading(false);
         }
-        toast.success(`${product.name} added to cart`);
     };
 
-    const handleQuantityChange = (productId, delta) => {
-        setCart((prevCart) =>
-            prevCart
+    const filteredProducts = products.filter((product) =>
+        product.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const addToCart = (product) => {
+        if (product.stock < 1) {
+            toast.warning('Out of stock');
+            return;
+        }
+
+        setCart((prev) => {
+            const existing = prev.find((item) => item._id === product._id);
+            if (existing) {
+                if (existing.quantity < product.stock) {
+                    return prev.map((item) =>
+                        item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+                    );
+                } else {
+                    toast.info('Stock limit reached');
+                    return prev;
+                }
+            } else {
+                return [...prev, { ...product, quantity: 1 }];
+            }
+        });
+    };
+
+    const updateQuantity = (id, delta) => {
+        setCart((prev) =>
+            prev
                 .map((item) =>
-                    item.product._id === productId
-                        ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-                        : item
+                    item._id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
                 )
                 .filter((item) => item.quantity > 0)
         );
     };
+
+    const removeFromCart = (id) => {
+        setCart((prev) => prev.filter((item) => item._id !== id));
+    };
+
+    const totalAmount = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     const handlePrintReceipt = () => {
         const printContent = document.getElementById('receipt');
@@ -71,15 +84,13 @@ const POSPage = () => {
     const handleConfirmPayment = async () => {
         try {
             const sale = {
-                items: cart.map(({ product, quantity }) => ({
-                    product: product._id,
-                    quantity
-                })),
-                totalAmount: cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
+                items: cart.map(({ _id, quantity }) => ({ product: _id, quantity })),
+                totalAmount,
                 paymentMethod,
+                ...(paymentMethod === 'mpesa' && { phoneNumber })
             };
 
-            await api.post('/sales', sale); // auth handled in axiosInstance
+            await api.post('/sales', sale);
 
             toast.success('Sale completed successfully');
             handlePrintReceipt();
@@ -87,76 +98,95 @@ const POSPage = () => {
             setShowModal(false);
         } catch (err) {
             toast.error('Failed to complete sale');
-            console.error(err);
         }
     };
 
     return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold mb-4">POS Page</h1>
+        <div className="p-4">
+            <h1 className="text-2xl font-semibold mb-4">Point of Sale</h1>
 
-            {/* 🛍️ Product List */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
-                {products.map((product) => (
-                    <button
-                        key={product._id}
-                        className="bg-indigo-600 text-white p-3 rounded hover:bg-indigo-700"
-                        onClick={() => handleAddToCart(product)}
-                    >
-                        {product.name} - KES {product.price}
-                    </button>
-                ))}
-            </div>
+            <input
+                type="text"
+                placeholder="Search products..."
+                className="p-2 border w-full mb-4 rounded"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+            />
 
-            {/* 🛒 Cart Table */}
-            <table className="w-full border mb-6">
-                <thead>
-                    <tr>
-                        <th className="border p-2">Item</th>
-                        <th className="border p-2">Price</th>
-                        <th className="border p-2">Quantity</th>
-                        <th className="border p-2">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {cart.map(({ product, quantity }) => (
-                        <tr key={product._id}>
-                            <td className="border p-2">{product.name}</td>
-                            <td className="border p-2">{product.price}</td>
-                            <td className="border p-2 flex justify-center items-center gap-2">
-                                <button onClick={() => handleQuantityChange(product._id, -1)}>-</button>
-                                {quantity}
-                                <button onClick={() => handleQuantityChange(product._id, 1)}>+</button>
-                            </td>
-                            <td className="border p-2">{product.price * quantity}</td>
-                        </tr>
+            {loading ? (
+                <p>Loading products...</p>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {filteredProducts.map((product) => (
+                        <div
+                            key={product._id}
+                            className={`border p-2 rounded shadow hover:shadow-lg transition duration-300 relative ${product.stock < 1 ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                            onClick={() => addToCart(product)}
+                        >
+                            {product.image && (
+                                <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-full h-32 object-cover rounded mb-2"
+                                />
+                            )}
+                            <h3 className="font-semibold text-sm truncate">{product.name}</h3>
+                            <p className="text-xs">KES {product.price}</p>
+                            {product.stock < 1 && (
+                                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded">
+                                    Out of Stock
+                                </span>
+                            )}
+                        </div>
                     ))}
-                </tbody>
-            </table>
+                </div>
+            )}
 
-            {/* 🧾 Total & Checkout */}
-            <div className="flex justify-between items-center mb-4">
-                <p className="text-lg font-semibold">
-                    Total: KES {cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0)}
-                </p>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded"
-                    disabled={cart.length === 0}
-                >
-                    Checkout
-                </button>
+            {/* Cart Drawer */}
+            <div className="mt-6 border-t pt-4">
+                <h2 className="text-xl font-semibold mb-2">Cart</h2>
+                {cart.length === 0 ? (
+                    <p>No items in cart.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {cart.map((item) => (
+                            <div
+                                key={item._id}
+                                className="flex justify-between items-center border p-2 rounded"
+                            >
+                                <div>
+                                    <h4 className="font-semibold">{item.name}</h4>
+                                    <p className="text-sm text-gray-600">KES {item.price} × {item.quantity}</p>
+                                    <div className="flex gap-2 mt-1">
+                                        <button onClick={() => updateQuantity(item._id, -1)} className="px-2 py-1 bg-gray-200 rounded">−</button>
+                                        <button onClick={() => updateQuantity(item._id, 1)} className="px-2 py-1 bg-gray-200 rounded">+</button>
+                                    </div>
+                                </div>
+                                <button onClick={() => removeFromCart(item._id)} className="text-red-500 text-sm">Remove</button>
+                            </div>
+                        ))}
+                        <div className="text-right font-bold text-lg">Total: KES {totalAmount}</div>
+                        <div className="text-right mt-2">
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                            >
+                                Checkout
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* 💳 Payment Modal */}
+            {/* Payment Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                    <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow">
                         <h2 className="text-xl font-bold mb-4">Payment</h2>
-
-                        <label className="block mb-2 font-medium">Payment Method:</label>
+                        <label className="block font-medium mb-1">Payment Method:</label>
                         <select
-                            className="w-full border px-3 py-2 mb-4"
+                            className="w-full border p-2 mb-4"
                             value={paymentMethod}
                             onChange={(e) => setPaymentMethod(e.target.value)}
                         >
@@ -167,24 +197,22 @@ const POSPage = () => {
 
                         {paymentMethod === 'mpesa' && (
                             <div className="mb-4">
-                                <label className="block mb-1 font-medium">Customer Phone:</label>
+                                <label className="block font-medium mb-1">Phone Number:</label>
                                 <input
                                     type="tel"
-                                    className="w-full border px-3 py-2"
+                                    className="w-full border p-2"
+                                    placeholder="07XXXXXXXX"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="07XXXXXXXX"
                                 />
                             </div>
                         )}
 
-                        <div className="flex justify-end gap-4">
-                            <button onClick={() => setShowModal(false)} className="text-gray-600">
-                                Cancel
-                            </button>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={() => setShowModal(false)} className="text-gray-600">Cancel</button>
                             <button
                                 onClick={handleConfirmPayment}
-                                className="bg-blue-600 text-white px-4 py-2 rounded"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
                             >
                                 Confirm Payment
                             </button>
@@ -193,19 +221,17 @@ const POSPage = () => {
                 </div>
             )}
 
-            {/* 🧾 Hidden Receipt */}
+            {/* Receipt (Hidden for printing) */}
             <div id="receipt" className="hidden">
                 <h2>Receipt</h2>
                 <ul>
-                    {cart.map(({ product, quantity }) => (
-                        <li key={product._id}>
-                            {product.name} x{quantity} = {product.price * quantity}
+                    {cart.map((item) => (
+                        <li key={item._id}>
+                            {item.name} x{item.quantity} = {item.price * item.quantity}
                         </li>
                     ))}
                 </ul>
-                <p>
-                    Total: KES {cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0)}
-                </p>
+                <p>Total: KES {totalAmount}</p>
                 <p>Payment: {paymentMethod.toUpperCase()}</p>
                 {paymentMethod === 'mpesa' && <p>Phone: {phoneNumber}</p>}
             </div>
